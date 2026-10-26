@@ -1,0 +1,269 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Fire Alert Replay</title>
+<style>
+:root{
+  --bg:#f6f5f1;--card:#fff;--ink:#1f1e1c;--muted:#6b6a65;--faint:#9a9993;--line:#e2e0d9;
+  --push-bg:#d93a35;--push-fg:#fff;
+  --on-bg:#dcefd0;--on-fg:#27500a;
+  --late-bg:#faeeda;--late-fg:#7a4508;
+  --wait-bg:#e6e3fb;--wait-fg:#3c3489;
+  --miss-bg:#fcebeb;--miss-fg:#a32d2d;
+  --idle-bg:#efede6;--idle-fg:#8a8983;
+  --fire:#d93a35;--near:#e0a030;--relay:#3b8f2a;--accent:#2f6fc0;
+}
+@media (prefers-color-scheme:dark){:root{
+  --bg:#191918;--card:#232321;--ink:#f0efe9;--muted:#a3a29b;--faint:#77766f;--line:#3a3936;
+  --on-bg:#27500a;--on-fg:#c0dd97;--late-bg:#633806;--late-fg:#fac775;
+  --wait-bg:#3c3489;--wait-fg:#cecbf6;--miss-bg:#501313;--miss-fg:#f09595;
+  --idle-bg:#2f2e2b;--idle-fg:#8a8983;--relay:#97c459;--accent:#78a9eb;
+}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.5 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+.wrap{max-width:1280px;margin:0 auto;padding:20px 16px 40px}
+h1{font-size:24px;font-weight:600;margin:0}
+.sub{color:var(--muted);margin:4px 0 16px}
+.sub b{color:var(--ink);font-weight:600}
+.ctl{display:flex;align-items:center;gap:8px;flex-wrap:wrap;background:var(--card);border:1px solid var(--line);border-radius:10px;padding:10px 12px;margin-bottom:14px}
+button,select{font:inherit;color:var(--ink);background:var(--card);border:1px solid var(--line);border-radius:8px;padding:6px 12px;cursor:pointer}
+button:hover{border-color:var(--faint)}
+button.primary{background:var(--ink);color:var(--bg);border-color:var(--ink);min-width:92px}
+input[type=range]{flex:1;min-width:140px;accent-color:var(--fire)}
+.when{font-weight:600;min-width:190px;text-align:right}
+.main{display:grid;grid-template-columns:minmax(0,1fr) 340px;gap:16px;align-items:start}
+.stage{position:relative;background:var(--card);border:1px solid var(--line);border-radius:10px;padding:12px}
+.server{display:flex;align-items:center;justify-content:center;gap:8px;margin:0 auto 12px;width:max-content;padding:6px 14px;border-radius:8px;border:2px solid var(--push-bg);color:var(--push-bg);font-weight:600;font-size:14px}
+.grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px}
+.room{border:1px solid var(--line);border-radius:8px;padding:8px;min-height:104px}
+.room.fire{border:2px solid var(--fire);background:color-mix(in srgb,var(--fire) 6%,transparent)}
+.room.near{border:1.5px dashed var(--near)}
+.rn{display:flex;justify-content:space-between;align-items:center;gap:6px;font-weight:600;font-size:13px;margin-bottom:6px}
+.tag{font-size:11px;font-weight:600;padding:1px 6px;border-radius:4px}
+.tag.f{background:var(--fire);color:#fff}.tag.n{background:var(--late-bg);color:var(--late-fg)}
+.chips{display:flex;flex-wrap:wrap;gap:4px}
+.chip{font:600 13px ui-monospace,Consolas,monospace;padding:3px 6px;border-radius:5px;cursor:default;transition:background .35s,color .35s,transform .2s}
+.S{background:var(--push-bg);color:var(--push-fg)}.O{background:var(--on-bg);color:var(--on-fg)}.L{background:var(--late-bg);color:var(--late-fg)}
+.W{background:var(--wait-bg);color:var(--wait-fg)}.M{background:var(--miss-bg);color:var(--miss-fg);text-decoration:line-through}.I{background:var(--idle-bg);color:var(--idle-fg)}
+.chip.new{outline:2px solid var(--ink);outline-offset:1px;animation:pop .5s ease-out}
+.chip.hl{transform:scale(1.25);outline:2px solid var(--accent)}
+@keyframes pop{0%{transform:scale(1.6)}100%{transform:scale(1)}}
+svg.arrows{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;overflow:visible}
+.arc{fill:none;stroke-width:2.2;stroke-linecap:round;stroke-dasharray:1;stroke-dashoffset:1;animation:draw .9s ease-out forwards}
+.arc.relay{stroke:var(--relay)}.arc.push{stroke:var(--push-bg);stroke-width:3}
+@keyframes draw{to{stroke-dashoffset:0}}
+.legend{display:flex;flex-wrap:wrap;gap:12px;font-size:13px;color:var(--muted);margin-top:10px}
+.legend span{display:inline-flex;align-items:center;gap:5px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:12px 14px;margin-bottom:12px}
+.card h3{margin:0 0 6px;font-size:12px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.04em}
+.big{font-size:16px;font-weight:600;margin-bottom:4px}
+.muted{color:var(--muted);font-size:13px}
+.pill{display:inline-block;font:12px ui-monospace,Consolas,monospace;background:var(--idle-bg);color:var(--ink);padding:2px 6px;border-radius:5px;margin:3px 4px 0 0;cursor:default}
+.pill:hover{background:var(--on-bg);color:var(--on-fg)}
+.bar{height:9px;border-radius:5px;background:var(--idle-bg);overflow:hidden;margin:4px 0 10px}
+.bar>div{height:100%;transition:width .5s}
+.row{display:flex;justify-content:space-between;font-size:13px}
+.ok{color:var(--relay);font-weight:600}
+.steps{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin-top:16px}
+.step{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:12px 14px;transition:border-color .3s}
+.step.on{border:2px solid var(--fire)}
+.step b{display:block;margin-bottom:4px}
+.step p{margin:0;font-size:13px;color:var(--muted)}
+.cmp{display:grid;grid-template-columns:150px minmax(0,1fr) 120px;gap:10px;align-items:center;font-size:14px;margin:6px 0}
+.cmp .bar{margin:0;height:14px}
+.err{background:var(--miss-bg);color:var(--miss-fg);padding:16px;border-radius:10px}
+@media (max-width:900px){.main{grid-template-columns:1fr}.steps{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media (max-width:560px){.grid{grid-template-columns:repeat(2,minmax(0,1fr))}.cmp{grid-template-columns:110px minmax(0,1fr) 80px}.when{min-width:0}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Hospital fire alert: CDA-GB graph burning on CUDA</h1>
+  <div class="sub" id="sub"></div>
+  <div id="app">
+    <div class="ctl">
+      <button id="prev" title="Previous round (Left arrow)">&#9664;</button>
+      <button id="play" class="primary" title="Play / pause (Space)">&#9654; Play</button>
+      <button id="next" title="Next round (Right arrow)">&#9654;</button>
+      <input type="range" id="slider" min="0" value="0" step="1" aria-label="Round">
+      <select id="speed" aria-label="Speed"><option value="0.5">0.5×</option><option value="1" selected>1×</option><option value="2">2×</option></select>
+      <span class="when" id="when"></span>
+    </div>
+    <div class="main">
+      <div>
+        <div class="stage" id="stage">
+          <div class="server" id="server">&#128225; ALERT SERVER (GPU planner)</div>
+          <div class="grid" id="grid"></div>
+          <svg class="arrows" id="arrows"></svg>
+        </div>
+        <div class="legend">
+          <span><span class="chip S">D05</span> server push</span>
+          <span><span class="chip O">N07</span> got alert on time</span>
+          <span><span class="chip L">P09</span> got it late</span>
+          <span><span class="chip W">D02</span> critical, waiting</span>
+          <span><span class="chip M">N10</span> critical, deadline missed</span>
+          <span><span class="chip I">V01</span> not critical</span>
+          <span><span class="chip I new" style="animation:none">X00</span> reached this round</span>
+          <span style="color:var(--relay)">&#10230; phone relay</span>
+          <span style="color:var(--push-bg)">&#10230; server push</span>
+        </div>
+      </div>
+      <div>
+        <div class="card"><h3>This round</h3><div id="event"></div></div>
+        <div class="card" id="gpuCard"><h3>GPU planner</h3><div id="gpu"></div></div>
+        <div class="card"><h3>Phone-to-phone relays</h3><div id="relays"></div></div>
+        <div class="card"><h3>Progress</h3>
+          <div class="row"><span>Critical people on time</span><b id="p1"></b></div>
+          <div class="bar"><div id="b1" style="background:var(--relay)"></div></div>
+          <div class="row"><span>Phones informed</span><b id="p2"></b></div>
+          <div class="bar"><div id="b2" style="background:var(--accent)"></div></div>
+          <div class="row"><span>Critical people missed</span><b id="p3" style="color:var(--miss-fg)"></b></div>
+        </div>
+      </div>
+    </div>
+    <div class="steps">
+      <div class="step" id="s0"><b>1. Fire detected</b><p>A sensor reports the room. People in or next to it get higher criticality and a shorter deadline (7 − criticality rounds).</p></div>
+      <div class="step" id="s1"><b>2. GPU scores every phone</b><p>One CUDA block per phone simulates "if the server alerts this phone, who gets it before their deadline?"</p></div>
+      <div class="step" id="s2"><b>3. Server pushes to the best one</b><p>Score = Gain × (1 − 0.3 · Overlap). Only K pushes are possible because the network is congested.</p></div>
+      <div class="step" id="s3"><b>4. Phones relay</b><p>Every phone with the alert passes it to phones near it (Bluetooth / Wi-Fi Direct). The fire spreads like graph burning.</p></div>
+    </div>
+    <div class="card" style="margin-top:16px"><h3>Result: same fire, same phones, other ways to pick the server pushes</h3><div id="cmp"></div><div class="muted" id="tot" style="margin-top:8px"></div></div>
+  </div>
+</div>
+<script src="replay_data.js"></script>
+<script>
+(function () {
+  const D = window.REPLAY;
+  const $ = id => document.getElementById(id);
+  if (!D) {
+    $('app').innerHTML = '<div class="err">No replay data found. Run <b>show_replay.bat</b> (or <code>bin\\firealert.exe demo --export viewer\\replay_data.js</code>) to create viewer/replay_data.js, then reload this page.</div>';
+    return;
+  }
+  const F = D.frames, P = D.people, cols = D.cols;
+  const dist = (a, b) => Math.abs(Math.floor(a / cols) - Math.floor(b / cols)) + Math.abs(a % cols - b % cols);
+  const name = v => P[v][0];
+  const fmt = (x, d) => Number(x).toFixed(d);
+  const tplus = r => { const s = r * D.roundSec; return 't+' + String(Math.floor(s / 60)).padStart(2, '0') + ':' + String(s % 60).padStart(2, '0'); };
+
+  $('sub').innerHTML = 'Fire in <b>' + D.rooms[D.fire] + '</b> · ' + D.N + ' people, <b>' + D.critTotal + ' critical</b> · server push budget K = ' + D.K +
+    ' · planner: <b>' + D.backend + '</b>' + (D.fail > 0 ? ' · unknown link failure ' + Math.round(D.fail * 100) + '%' : '') + ' · seed ' + D.seed;
+  $('slider').max = F.length - 1;
+
+  let k = 0, timer = null;
+
+  function render() {
+    const f = F[k];
+    const rooms = D.rooms.map(() => []);
+    f.room.forEach((a, v) => rooms[a].push(v));
+    const isNew = new Set(f.new);
+    $('grid').innerHTML = D.rooms.map((nm, a) => {
+      const d = dist(a, D.fire);
+      const cls = d === 0 ? 'room fire' : d === 1 ? 'room near' : 'room';
+      const tag = d === 0 ? '<span class="tag f">FIRE</span>' : d === 1 ? '<span class="tag n">near fire</span>' : '';
+      const chips = rooms[a].map(v => '<span class="chip ' + f.st[v] + (isNew.has(v) ? ' new' : '') + '" data-v="' + v + '" title="' +
+        name(v) + ' · ' + P[v][1] + ' · criticality ' + P[v][2] + ' · deadline round ' + P[v][3] + '">' + name(v) + '</span>').join('');
+      return '<div class="' + cls + '"><div class="rn"><span>' + nm + '</span>' + tag + '</div><div class="chips">' + chips + '</div></div>';
+    }).join('');
+
+    $('when').textContent = k === 0 ? 'Fire reported · t+00:00' : 'Round ' + f.r + ' / ' + D.H + ' · ' + tplus(f.r);
+    $('slider').value = k;
+
+    let ev = '', gpu = '';
+    if (k === 0) {
+      const near = f.room.filter(a => dist(a, D.fire) <= 1).length;
+      ev = '<div class="big">&#128293; Sensor: fire in ' + D.rooms[D.fire] + '</div><div class="muted">' + near +
+        ' people are in or next to it, so their criticality goes up. ' + D.critTotal + ' people are critical (purple) and must be alerted before their deadline. Press Play.</div>';
+      gpu = '<div class="muted">Waiting for round 1.</div>';
+    } else if (f.src >= 0) {
+      const v = f.src;
+      ev = '<div class="big">&#128225; Server pushes to ' + name(v) + '</div><div class="muted">' + P[v][1] + ' in ' + D.rooms[f.room[v]] +
+        ', criticality ' + P[v][2] + ', deadline round ' + P[v][3] + '<br>Score <b>' + fmt(f.score, 2) + '</b>: reaches ' + f.reach + ' phones, ' + f.nw +
+        ' not covered yet' + (f.score > 0 ? '' : '<br>No deadline can still be met, picked for coverage') + '</div>' +
+        (f.top.length ? '<div class="muted" style="margin-top:6px">Next best: ' + f.top.map(t => name(t[0]) + ' ' + fmt(t[1], 2)).join(', ') + '</div>' : '');
+      gpu = f.gpu
+        ? '<div>Scored <b>' + f.cands + '</b> candidate phones in parallel</div><div class="muted">CUDA kernel ' + fmt(f.kernelMs, 3) + ' ms · total ' + fmt(f.gpuMs, 3) + ' ms' +
+          (f.verify ? '<br>CPU check ' + fmt(f.cpuMs, 3) + ' ms · ' + (f.match ? '<span class="ok">identical &#10003;</span>' : '<span style="color:var(--miss-fg)">MISMATCH</span>') : '') + '</div>'
+        : '<div>CPU scored <b>' + f.cands + '</b> candidate phones</div><div class="muted">' + fmt(f.cpuMs, 3) + ' ms</div>';
+    } else {
+      ev = '<div class="big">No server push this round</div><div class="muted">' + f.why + '. The alert keeps spreading phone to phone.</div>';
+      gpu = '<div class="muted">Idle: no more pushes to plan.</div>';
+    }
+    $('event').innerHTML = ev;
+    $('gpu').innerHTML = gpu;
+    $('relays').innerHTML = f.relay.length
+      ? f.relay.map(e => '<span class="pill" data-a="' + e[0] + '" data-b="' + e[1] + '">' + name(e[0]) + ' &#8594; ' + name(e[1]) + '</span>').join('')
+      : '<span class="muted">' + (k === 0 ? 'None yet.' : 'No new contacts this round.') + '</span>';
+
+    $('p1').textContent = f.critOn + ' / ' + D.critTotal;
+    $('b1').style.width = (100 * f.critOn / D.critTotal) + '%';
+    $('p2').textContent = f.informed + ' / ' + D.N;
+    $('b2').style.width = (100 * f.informed / D.N) + '%';
+    $('p3').textContent = f.missed;
+
+    const step = k === 0 ? [0] : f.src >= 0 ? [1, 2, 3] : [3];
+    for (let i = 0; i < 4; i++) $('s' + i).classList.toggle('on', step.includes(i));
+    requestAnimationFrame(drawArrows);
+  }
+
+  function center(el, box) {
+    const r = el.getBoundingClientRect();
+    return [r.left - box.left + r.width / 2, r.top - box.top + r.height / 2];
+  }
+  function drawArrows() {
+    const svg = $('arrows'), f = F[k], box = $('stage').getBoundingClientRect();
+    const chip = v => $('grid').querySelector('[data-v="' + v + '"]');
+    let out = '<defs><marker id="ar" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0L10,5L0,10z" fill="var(--relay)"/></marker>' +
+      '<marker id="ap" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0L10,5L0,10z" fill="var(--push-bg)"/></marker></defs>';
+    const curve = (a, b, cls, mk) => {
+      const mx = (a[0] + b[0]) / 2, my = (a[1] + b[1]) / 2, dx = b[0] - a[0], dy = b[1] - a[1];
+      const len = Math.hypot(dx, dy) || 1, bend = Math.min(40, 12 + len * 0.15);
+      const cx = mx - dy / len * bend, cy = my + dx / len * bend;
+      out += '<path class="arc ' + cls + '" pathLength="1" marker-end="url(#' + mk + ')" d="M' + a[0] + ',' + a[1] + ' Q' + cx + ',' + cy + ' ' + b[0] + ',' + b[1] + '"/>';
+    };
+    if (f.src >= 0 && chip(f.src)) curve(center($('server'), box), center(chip(f.src), box), 'push', 'ap');
+    f.relay.forEach(e => { const a = chip(e[0]), b = chip(e[1]); if (a && b) curve(center(a, box), center(b, box), 'relay', 'ar'); });
+    svg.innerHTML = out;
+  }
+
+  function stop() { clearInterval(timer); timer = null; $('play').innerHTML = '&#9654; Play'; }
+  function play() {
+    if (timer) { stop(); return; }
+    if (k >= F.length - 1) { k = 0; render(); }
+    $('play').innerHTML = '&#10074;&#10074; Pause';
+    timer = setInterval(() => { if (k >= F.length - 1) { stop(); return; } k++; render(); }, 2600 / +$('speed').value);
+  }
+  $('play').onclick = play;
+  $('prev').onclick = () => { stop(); k = Math.max(0, k - 1); render(); };
+  $('next').onclick = () => { stop(); k = Math.min(F.length - 1, k + 1); render(); };
+  $('slider').oninput = e => { stop(); k = +e.target.value; render(); };
+  $('speed').onchange = () => { if (timer) { stop(); play(); } };
+  document.addEventListener('keydown', e => {
+    if (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT') return;
+    if (e.code === 'Space') { e.preventDefault(); play(); }
+    if (e.code === 'ArrowRight') $('next').click();
+    if (e.code === 'ArrowLeft') $('prev').click();
+  });
+  $('relays').addEventListener('mouseover', e => {
+    const p = e.target.closest('.pill'); if (!p) return;
+    [p.dataset.a, p.dataset.b].forEach(v => { const c = $('grid').querySelector('[data-v="' + v + '"]'); if (c) c.classList.add('hl'); });
+  });
+  $('relays').addEventListener('mouseout', () => $('grid').querySelectorAll('.hl').forEach(c => c.classList.remove('hl')));
+  window.addEventListener('resize', () => requestAnimationFrame(drawArrows));
+
+  $('cmp').innerHTML = D.compare.map((c, i) => {
+    const pct = c[2] ? Math.round(100 * c[1] / c[2]) : 0;
+    return '<div class="cmp"><span style="' + (i === 0 ? 'font-weight:600' : 'color:var(--muted)') + '">' + c[0] + '</span><div class="bar"><div style="width:' + pct +
+      '%;background:' + (i === 0 ? 'var(--relay)' : 'var(--faint)') + '"></div></div><span>' + c[1] + '/' + c[2] + ' on time (' + pct + '%)</span></div>';
+  }).join('');
+  const T = D.plannerTotal;
+  $('tot').innerHTML = T.gpu
+    ? 'GPU planner: ' + T.calls + ' rounds, ' + fmt(T.gpuMs, 2) + ' ms total (CPU reference ' + fmt(T.cpuMs, 2) + ' ms, ' + T.mismatches + ' mismatches)'
+    : 'CPU planner: ' + T.calls + ' rounds, ' + fmt(T.cpuMs, 2) + ' ms total';
+
+  render();
+})();
+</script>
+</body>
+</html>
